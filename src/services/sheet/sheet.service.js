@@ -1,7 +1,9 @@
 const { google } = require("googleapis");
-const config = require("../config/config");
+
 const path = require("path");
-const { columnNumberToLetter } = require("../utils/sheet.helper");
+
+const config = require("../../config/config");
+const { columnNumberToLetter } = require("../../utils/sheet.helper");
 
 let sheetsClient;
 async function getSheetsClient() {
@@ -281,7 +283,8 @@ async function ensureHeaders(sheetName, headers, spreadsheetId) {
     spreadsheetId,
   );
 }
-module.exports = {
+
+const sheetServices ={
   getSheetsClient,
   getValues,
   updateValues,
@@ -294,3 +297,4 @@ module.exports = {
   deleteSheetRow,
   deleteRowsBatch
 };
+module.exports = sheetServices

@@ -1,4 +1,4 @@
-const HEADERS_CASH_FUND = [
+const HEADERS= [
   "ID",
   "Mã phiếu",
   "Mã chứng từ gốc",
@@ -11,8 +11,8 @@ const HEADERS_CASH_FUND = [
 ];
 
 const crypto = require("crypto");
-const { text } = require("../customers/customer.mapper");
 const { formatNumberAmount } = require("../../utils/formatDate");
+const { text } = require("../../utils/sheet.helper");
 
 function makeCashFundHash(row) {
   const normalized = row.map((val) => {
@@ -60,8 +60,9 @@ function cashFundToRow(cashFund) {
 
   return [...row, hash];
 }
-
-module.exports = {
-  HEADERS_CASH_FUND,
+const cashFundMapper ={
+  HEADERS,
   cashFundToRow,
 };
+
+module.exports = cashFundMapper

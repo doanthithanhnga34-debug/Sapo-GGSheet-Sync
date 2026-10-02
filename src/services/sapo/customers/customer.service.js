@@ -1,39 +1,10 @@
-const config = require("../../config/config");
-const { retry, sleep } = require("../../utils/retry");
 
-function buildAuthHeader() {
-  const raw = config.sapo.apiKey + ":" + config.sapo.apiSecret;
+const config = require("../../../config/config");
+const { sleep } = require("../../../infrastructure/retry");
 
-  return "Basic " + Buffer.from(raw).toString("base64");
-}
+const { sapoGet } = require("../sapo.service");
 
-async function sapoGet(path) {
-  return retry(async () => {
-    const response = await fetch(config.sapo.baseUrl + path, {
-      method: "GET",
-      headers: {
-        Authorization: buildAuthHeader(),
-        Accept: "application/json",
-      },
-    });
-    console.log(' url', config.sapo.baseUrl + path);
-    if(response.status === 404){
-      const error = new Error("Sapo API 404");
-      error.status = 404;
-      error.retryable = false;
-      throw error;
-    }
-    if (response.status === 429 || response.status > 500) {
-      throw new Error(`Sapo http ${response.status}`);
-    }
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Sapo http ${response.status}: ${text}`);
-    }
-    return response.json();
-  });
-}
 async function getCustomerGroup(id) {
   const data = await sapoGet(`/admin/customer_groups.json?customer_id=${id}`);
 
@@ -81,6 +52,8 @@ async function getCustomer(id) {
   const customer = data?.customer;
   return customer;
 }
+
+
 async function getCustomers({
   page = 1,
   limit = config.sapo.customerLimit,
@@ -134,7 +107,7 @@ async function getAllCustomers({ modifiedFrom = null, onPage = null } = {}) {
   return customers;
 }
 
-module.exports = {
+const customerService = {
   sapoGet,
   getInvoiceInfo,
   getCustomerGroup,
@@ -142,3 +115,4 @@ module.exports = {
   getAllCustomers,
   getCustomer
 };
+module.exports = customerService

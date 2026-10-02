@@ -12,7 +12,7 @@ const DEFAULT_STATE = {
   nextPage: 1,
   status: "idle",
 };
-async function getCashFundSyncState() {
+async function get() {
   const ref = db.collection(COLLECTION).doc(DOCUMENT);
   const doc = await ref.get();
   if (!doc.exists) {
@@ -27,8 +27,8 @@ async function getCashFundSyncState() {
   };
 }
 
-async function setCashFundSyncState(data = {}) {
-  const current = await getCashFundSyncState();
+async function set(data = {}) {
+  const current = await get();
 
   const ref = await db.collection(COLLECTION).doc(DOCUMENT);
   await ref.set(
@@ -43,7 +43,10 @@ async function setCashFundSyncState(data = {}) {
   return true;
 }
 
-module.exports = {
-  getCashFundSyncState,
-  setCashFundSyncState,
+const cashFundSyncState = {
+  get,
+  set,
 };
+
+
+module.exports = cashFundSyncState

@@ -1,11 +1,10 @@
-const { raw } = require("express");
+const config = require("../../config/config");
 const {
   ensureSheet,
+  ensureHeaders,
   getValues,
   updateValues,
-  ensureHeaders,
-} = require("./sheet.service");
-const config = require("../config/config");
+} = require("../sheet/sheet.service");
 
 const SHEET_NAME_SYNC_STATE = "SYNC_STATE";
 const sheetID = config.ggSheetCustomer.sheetID;
@@ -15,7 +14,7 @@ async function ensureCustomerSyncState() {
   await ensureHeaders("SYNC_STATE", ["Key", "Value"], sheetID);
 }
 
-async function getCustomerSyncState() {
+async function get() {
   await ensureCustomerSyncState();
 
   const values = await getValues(`'${SHEET_NAME_SYNC_STATE}'!A2:B20`, sheetID);
@@ -56,8 +55,8 @@ async function getCustomerSyncState() {
 
   return state;
 }
-async function saveCustomerSyncState(changes = {}) {
-  const current = await getCustomerSyncState();
+async function set(changes = {}) {
+  const current = await get();
 
   const state = {
     ...current,
@@ -88,7 +87,7 @@ async function saveCustomerSyncState(changes = {}) {
 }
 
 async function resetCustomerSyncState() {
-  return saveCustomerSyncState({
+  return set({
     nextPage: 1,
     lastModifiedOn: "",
     status: "idle",
@@ -96,14 +95,17 @@ async function resetCustomerSyncState() {
 }
 
 async function markCustomerSyncStateDone() {
-  return saveCustomerSyncState({
+  return set({
     status: "done",
   });
 }
 
-module.exports = {
-  getCustomerSyncState,
-  saveCustomerSyncState,
+
+const customerSyncState = {
+  get,
+  set,
   resetCustomerSyncState,
   markCustomerSyncStateDone,
 };
+
+module.exports = customerSyncState;

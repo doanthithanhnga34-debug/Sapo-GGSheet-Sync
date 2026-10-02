@@ -1,5 +1,7 @@
-const config = require("../../config/config");
-const { sleep } = require("../../utils/retry");
+
+const config = require("../../../config/config");
+const { sleep } = require("../../../infrastructure/retry");
+
 const { sapoGet } = require("../customers/customer.service");
 
 async function getCashFunds({ 
@@ -36,8 +38,8 @@ async function getCashFund(voucherId){
   const cashFund = data?.voucher;
   return cashFund;
 }
-
-module.exports = {
+const cashFundService = {
   getCashFund,
-  getCashFunds,
-};
+  getCashFunds
+}
+module.exports = cashFundService

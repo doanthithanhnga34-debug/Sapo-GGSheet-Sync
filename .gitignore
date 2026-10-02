@@ -3,7 +3,9 @@ node_modules/
 .env.*
 .env.yaml
 src/credentials/
-*.json
+src/credentials/*.json
 npm-debug.log*
 .DB_Store
 .gcloudignore
+.package.json
+.package-lock.json

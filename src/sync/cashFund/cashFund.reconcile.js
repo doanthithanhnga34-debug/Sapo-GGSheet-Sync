@@ -1,17 +1,15 @@
 const config = require("../../config/config");
-const {
-  getCashFunds,
-  getCashFund,
-} = require("../../sapo/castFund/cashFund.service");
-const { deleteRowsBatch } = require("../../sheet/sheet.service");
-const { buildCashFundIdSet } = require("../cashFund/buildCashFund.sync");
+const cashFundRouter = require("../../routes/cashFund.route");
+const cashFundService = require("../../services/sapo/castFund/cashFund.service");
+const sheetServices = require("../../services/sheet/sheet.service");
+const cashFundSync = require("./cashFund.sync");
 
 async function getAllCashFundIds() {
   const limit = config.sapo.limit;
   const ids = new Set();
   let page = 1;
   while (true) {
-    const cashFunds = await getCashFunds({ page, limit });
+    const cashFunds = await cashFundService.getCashFunds({ page, limit });
     console.log(
       `Delete check page cash fund: page=${page}, count=${cashFunds.length}`,
     );
@@ -35,7 +33,7 @@ async function getAllCashFundIds() {
 
 async function cashFundExistOnSapo(cashFundId) {
   try {
-    const cashFund = await getCashFund(cashFundId);
+    const cashFund = await cashFundService.getCashFund(cashFundId);
     return !!cashFund;
   } catch (e) {
     if (e.status === 404) {
@@ -46,7 +44,7 @@ async function cashFundExistOnSapo(cashFundId) {
 }
 
 async function reconcileDeletedCashFund(){
-    const cashFundIndex = await buildCashFundIdSet();
+    const cashFundIndex = await getAllCashFundIds();
     const sapoCashFundIds = await getAllCashFundIds();
     const candidates=[];
 
@@ -82,7 +80,7 @@ async function reconcileDeletedCashFund(){
     }
 
     if(rowsToDeletes.length > 0){
-    await deleteRowsBatch(rowsToDeletes,config.ggSheetCashFund.cashFundSheetName,config.ggSheetCashFund.sheetID);
+    await sheetServices.deleteRowsBatch(rowsToDeletes,config.ggSheetCashFund.cashFundSheetName,config.ggSheetCashFund.sheetID);
 
     }
     return {
@@ -94,6 +92,7 @@ async function reconcileDeletedCashFund(){
     }
 }
 
-module.exports = {
+const cashFundReconcileSync ={
     reconcileDeletedCashFund
 }
+module.exports = cashFundReconcileSync

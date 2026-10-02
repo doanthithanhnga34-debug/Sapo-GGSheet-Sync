@@ -1,22 +1,20 @@
 const config = require("../../config/config");
-const { getCashFunds } = require("../../sapo/castFund/cashFund.service");
+const cashFundService = require("../../services/sapo/castFund/cashFund.service");
+const cashFundSyncState = require("../../services/syncState/cashFundSyncState.service");
+const cashFundMapper = require("./cashFund.mapper");
+
 const {
   formatDateTimeColumn,
   insertRowsAtTop,
-} = require("../../sheet/cashFund/cashFund.service");
-const {
-  getCashFundSyncState,
-  setCashFundSyncState,
-} = require("../../sheet/cashFund/cashFundSyncState.service");
+} = require("../../services/sheet/cashFund/cashFund.service");
 const {
   ensureSheet,
   ensureHeaders,
   ensureSheetSize,
   updateValues,
   getValues,
-} = require("../../sheet/sheet.service");
+} = require("../../services/sheet/sheet.service");
 const { columnNumberToLetter } = require("../../utils/sheet.helper");
-const { cashFundToRow, HEADERS_CASH_FUND } = require("./cashFund.mapper");
 
 async function buildCashFund() {
   const page = 15;
@@ -92,12 +90,12 @@ async function buildCashFund() {
 async function buildBatchCashFund() {
   const limit = config.sapo.cashFundLimit;
 
-  const syncState = await getCashFundSyncState();
+  const syncState = await cashFundSyncState.get();
   console.log("sync_state", syncState);
   const page = Number(syncState.nextPage) || 0;
 
   try {
-    const cashFunds = await getCashFunds({ page, limit });
+    const cashFunds = await cashFundService.getCashFunds({ page, limit });
     console.log(`cash fund ${cashFunds.length}`);
 
     if (!cashFunds.length) {
@@ -109,10 +107,10 @@ async function buildBatchCashFund() {
 
     const rows = [];
     for (const cashFund of cashFunds) {
-      const row = cashFundToRow(cashFund);
-      if (!Array.isArray(row) || row.length !== HEADERS_CASH_FUND.length) {
+      const row = cashFundMapper.cashFundToRow(cashFund);
+      if (!Array.isArray(row) || row.length !== cashFundMapper.HEADERS.length) {
         throw new Error(
-          `Data cashFund is not matched ${HEADERS_CASH_FUND.length}`,
+          `Data cashFund is not matched ${cashFundMapper.HEADERS.length}`,
         );
       }
       rows.push(row);
@@ -146,7 +144,7 @@ async function buildBatchCashFund() {
 
     const done = cashFunds.length < limit;
 
-    await setCashFundSyncState({
+    await cashFundSyncState.set({
       nextPage: page + 1,
       status: done ? "done" : "idle",
     });
@@ -161,82 +159,7 @@ async function buildBatchCashFund() {
       endRow,
     };
   } catch (e) {
-    await setCashFundSyncState({
-      status: "error",
-    });
-    throw e;
-  }
-}
-
-async function buildAddRowOnTopSheet() {
-  const limit = config.sapo.cashFundLimit;
-
-  const syncState = await getCashFundSyncState();
-  console.log("sync_state", syncState);
-  const page = Number(syncState.nextPage) || 0;
-
-  try {
-    const cashFunds = await getCashFunds({ page, limit });
-    console.log(`cash fund ${cashFunds.length}`);
-
-    if (!cashFunds.length) {
-      return {
-        success: true,
-        done: true,
-      };
-    }
-
-    const rows = [];
-    for (const cashFund of cashFunds) {
-      const row = cashFundToRow(cashFund);
-      if (!Array.isArray(row) || row.length !== HEADERS_CASH_FUND.length) {
-        throw new Error(
-          `Data cashFund is not matched ${HEADERS_CASH_FUND.length}`,
-        );
-      }
-      rows.push(row);
-    }
-    const sheetName = String(config.ggSheetCashFund.cashFundSheetName).trim();
-    const sheetID = config.ggSheetCashFund.sheetID;
-    const startRow = (page - 1) * limit + 2;
-    const endRow = startRow + rows.length - 1;
-    await ensureSheet(
-      sheetName,
-      Math.max(endRow, 1000),
-      HEADERS_CASH_FUND.length,
-      sheetID,
-    );
-    await ensureHeaders(sheetName, HEADERS_CASH_FUND, sheetID);
-    const voucherDateIndex = HEADERS_CASH_FUND.indexOf("Ngày ghi nhận");
-    if (voucherDateIndex === -1) {
-      throw new Error(`Not found column voucher date`);
-    }
-    await formatDateTimeColumn(sheetName, voucherDateIndex, sheetID);
-    await ensureSheetSize(sheetName, endRow, HEADERS_CASH_FUND.length, sheetID);
-
-    const lastColumn = columnNumberToLetter(HEADERS_CASH_FUND.length);
-
-    await insertRowsAtTop(sheetName, rows, sheetID);
-    console.log(`cash fund page = ${page}, wrote = ${rows.length}`);
-
-    const done = cashFunds.length < limit;
-
-    await setCashFundSyncState({
-      nextPage: page + 1,
-      status: done ? "done" : "idle",
-    });
-    return {
-      success: true,
-      done,
-      page,
-      nextPage: page + 1,
-      cashFund: cashFunds.length,
-      rows: rows.length,
-      startRow,
-      endRow,
-    };
-  } catch (e) {
-    await setCashFundSyncState({
+    await cashFundSyncState.set({
       status: "error",
     });
     throw e;
@@ -247,7 +170,7 @@ async function buildCashFundIdSet() {
   const sheetName = config.ggSheetCashFund.cashFundSheetName;
   const spreadsheetId = config.ggSheetCashFund.sheetID;
 
-  const idIndex = HEADERS_CASH_FUND.indexOf("ID");
+  const idIndex = cashFundMapper.HEADERS.indexOf("ID");
 
   if (idIndex === -1) {
     throw new Error("Not found ID column");
@@ -268,11 +191,12 @@ async function buildCashFundIdSet() {
   console.log(`Existing cash fund IDs = ${ids.size}`);
   return ids;
 }
-async function incrementalCashFundSync() {
+
+async function incremental() {
   const limit = config.sapo.cashFundLimit;
   const sheetName = config.ggSheetCashFund.cashFundSheetName;
   const spreadsheetId = config.ggSheetCashFund.sheetID;
-  const state = await getCashFundSyncState();
+  const state = await cashFundSyncState.get();
   const runStartedAt = new Date().toISOString();
 
   const checkpoint =
@@ -281,12 +205,10 @@ async function incrementalCashFundSync() {
   const voucherDateMin = new Date(
     new Date(checkpoint).getTime() - 60 * 60 * 1000,
   ).toISOString();
-  const voucherDateMax = runStartedAt;
-  console.log(
-    `cash fund incremental min=${voucherDateMin}, max=${voucherDateMax}`,
-  );
 
-  const existingIds = await buildCashFundIdSet();
+  const voucherDateMax = runStartedAt;
+
+  const existingIds = await cashFundSync.buildCashFundIdSet();
 
   const newItems = [];
   let page = 1;
@@ -294,13 +216,13 @@ async function incrementalCashFundSync() {
   let totalSkip = 0;
 
   while (true) {
-    const cashFunds = await getCashFunds({
+    const cashFunds = await cashFundService.getCashFunds({
       page,
       limit,
       voucherDateMin,
       voucherDateMax,
     });
-    console.log(`cash fund page=${page}, count=${cashFunds.length}`);
+    console.log(`cash fund page=${page}, count=${cashFunds.length} `);
     if (!cashFunds.length) {
       break;
     }
@@ -321,7 +243,7 @@ async function incrementalCashFundSync() {
       newItems.push({
         id,
         voucherDate: cashFund.voucher_date,
-        row: cashFundToRow(cashFund),
+        row: cashFundMapper.cashFundToRow(cashFund),
       });
       existingIds.add(id);
     }
@@ -335,7 +257,7 @@ async function incrementalCashFundSync() {
   if (newRows.length > 0) {
     await insertRowsAtTop(sheetName, newRows, spreadsheetId);
   }
-  await setCashFundSyncState({
+  await cashFundSyncState.set({
     lastVoucherDate: runStartedAt,
     status: "idle",
   });
@@ -355,9 +277,10 @@ async function incrementalCashFundSync() {
     skipped: totalSkip,
   };
 }
-module.exports = {
+const cashFundSync = {
   buildCashFund,
   buildBatchCashFund,
-  incrementalCashFundSync,
-   buildCashFundIdSet
+  buildCashFundIdSet,
+  incremental,
 };
+module.exports = cashFundSync;

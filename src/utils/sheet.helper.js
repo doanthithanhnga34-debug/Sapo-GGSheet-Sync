@@ -14,7 +14,27 @@ function columnNumberToLetter(column) {
 
   return result;
 }
+function text(value) {
+  if (value == null) {
+    return "";
+  }
+  if (!["string", "number", "boolean"].includes(typeof value)) {
+    throw new Error("Expected a scalar cell value");
+  }
+  return String(value).trim();
+}
 
+function number(value, field) {
+  if (value == null || value === "") return 0;
+  if (!["string", "number"].includes(typeof value)) {
+    throw new Error("Invalid numeric field:", field);
+  }
+  const result = Number(value);
+  if (!Number.isFinite(result))
+    throw new Error(`Invalid numeric field: ${field}`);
+  return result;
+}
 module.exports={
-    columnNumberToLetter
+    columnNumberToLetter,
+    text
 }

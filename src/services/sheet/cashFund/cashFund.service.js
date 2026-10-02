@@ -1,7 +1,8 @@
 const { request } = require("express");
 const { getSheetsClient } = require("../sheet.service");
-const { columnNumberToLetter } = require("../../utils/sheet.helper");
-const { HEADERS_CASH_FUND } = require("../../sync/cashFund/cashFund.mapper");
+const { columnNumberToLetter } = require("../../../utils/sheet.helper");
+
+
 
 async function formatDateTimeColumn(sheetName, columnIndex, spreadsheetId) {
   const sheets = await getSheetsClient();

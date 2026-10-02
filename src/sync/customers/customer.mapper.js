@@ -18,7 +18,9 @@ const HEADERS = [
   "Sync_hash"
 ];
 const crypto = require("crypto");
-const { getInvoiceInfo, getCustomerGroup } = require("../../sapo/customers/customer.service");
+
+const { text } = require("../../utils/sheet.helper");
+const customerService = require("../../services/sapo/customers/customer.service");
 
 
 
@@ -30,26 +32,6 @@ function makeCustomerHash(row){
     return String(value).trim()
   })
   return crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex")
-}
-function text(value) {
-  if (value == null) {
-    return "";
-  }
-  if (!["string", "number", "boolean"].includes(typeof value)) {
-    throw new Error("Expected a scalar cell value");
-  }
-  return String(value).trim();
-}
-
-function number(value, field) {
-  if (value == null || value === "") return 0;
-  if (!["string", "number"].includes(typeof value)) {
-    throw new Error("Invalid numeric field:", field);
-  }
-  const result = Number(value);
-  if (!Number.isFinite(result))
-    throw new Error(`Invalid numeric field: ${field}`);
-  return result;
 }
 
 function getTotalSpent(customer) {
@@ -89,8 +71,8 @@ async function customerToRow(customer) {
       .join(" ");
 
   const [customerGroup, company] = await Promise.all([
-    getCustomerGroup(customer.id),
-    getInvoiceInfo(customer.id),
+   customerService.getCustomerGroup(customer.id),
+   customerService.getInvoiceInfo(customer.id),
   ]);
 
   const row = [
@@ -119,10 +101,9 @@ async function customerToRow(customer) {
     syncHash
   ];
 }
-
-module.exports = {
+const customerMapper =  {
   HEADERS,
   customerToRow,
   makeCustomerHash,
-  text
 };
+module.exports =customerMapper

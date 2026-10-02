@@ -1,10 +1,8 @@
+
 const config = require("../../config/config");
-const {
-  getCustomers,
-  getCustomer,
-} = require("../../sapo/customers/customer.service");
-const { deleteRowsBatch } = require("../../sheet/sheet.service");
-const { buildCustomerIdIndex } = require("../customers/buildCustomer.sync");
+const customerService = require("../../services/sapo/customers/customer.service");
+const { deleteRowsBatch } = require("../../services/sheet/sheet.service");
+const customerSync = require("./customer.sync");
 
 async function getAllSapoCustomersIds() {
   const limit = config.sapo.customerLimit;
@@ -12,7 +10,7 @@ async function getAllSapoCustomersIds() {
 
   let page = 1;
   while (true) {
-    const customers = await getCustomers({
+    const customers = await customerService.getCustomers({
       page,
       limit,
       sortKey: "id",
@@ -40,7 +38,7 @@ async function getAllSapoCustomersIds() {
 
 async function customerExistsOnSapo(customerId) {
   try {
-    const customer = await getCustomer(customerId);
+    const customer = await customerService.getCustomer(customerId);
     return !!customer;
   } catch (e) {
     if (e.status === 404) {
@@ -52,7 +50,7 @@ async function customerExistsOnSapo(customerId) {
 
 async function reconcileDeletedCustomers() {
   console.log(`delete reconcile start`);
-  const { index: customerIndex } = await buildCustomerIdIndex();
+  const { index: customerIndex } = await customerSync.buildCustomerIdIndex();
 
   console.log(`delete reconcile sheet unique ids =${customerIndex.size}`);
   const sapoCustomersIds = await getAllSapoCustomersIds();
@@ -109,6 +107,7 @@ async function reconcileDeletedCustomers() {
   };
 }
 
-module.exports = {
-  reconcileDeletedCustomers,
-};
+const customerReconcile = {
+    reconcileDeletedCustomers
+}
+module.exports = customerReconcile
