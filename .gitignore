@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+.env.yaml
+src/credentials/
+*.json
+npm-debug.log*
+.DB_Store
+.gcloudignore
