@@ -1,13 +1,14 @@
-const HEADERS= [
+const HEADERS = [
   "ID",
   "Mã phiếu",
-  "Mã chứng từ gốc",
-  "Tên đối tượng",
-  "Số tiền",
-  "Lý do thu chi",
   "Ngày ghi nhận",
+  "Tên đối tượng",
+  "Lý do thu chi",
+  "Mã chứng từ gốc",
+  "Số tiền",
+  "Diễn giải",
   "Chi nhánh xuất quỹ",
-  "Sync_hash",
+  "Ngày cập nhật",
 ];
 
 const crypto = require("crypto");
@@ -49,20 +50,21 @@ function cashFundToRow(cashFund) {
   const row = [
     text(cashFund.id ?? ""),
     text(cashFund.code) || "",
-    text(cashFund.document_root_codes) || "",
-    text(cashFund.object?.object_name) || "",
-    formatNumberAmount(cashFund.origin_amount) ?? 0,
-    text(cashFund.reason?.reason_name) || "",
     isoToGoogleSheetDateTime(cashFund.voucher_date) || "",
+    text(cashFund.object?.object_name) || "",
+    text(cashFund.reason?.reason_name) || "",
+    text(cashFund.document_root_codes) || "",
+    formatNumberAmount(cashFund.origin_amount) ?? 0,
+    text(cashFund.memo),
     text(cashFund.created_by),
+    text(cashFund.modified_on),
   ];
-  const hash = makeCashFundHash(row);
 
-  return [...row, hash];
+  return row;
 }
-const cashFundMapper ={
+const cashFundMapper = {
   HEADERS,
   cashFundToRow,
 };
 
-module.exports = cashFundMapper
+module.exports = cashFundMapper;

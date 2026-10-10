@@ -15,6 +15,7 @@ const {
   getValues,
 } = require("../../services/sheet/sheet.service");
 const { columnNumberToLetter } = require("../../utils/sheet.helper");
+const sheetServices = require("../../services/sheet/sheet.service");
 
 async function buildCashFund() {
   const page = 15;
@@ -43,16 +44,16 @@ async function buildCashFund() {
   await ensureSheet(
     sheetName,
     1000,
-    HEADERS_CASH_FUND.length,
+   cashFundMapper.HEADERS.length,
     config.ggSheetCashFund.sheetID,
   );
   await ensureHeaders(
     sheetName,
-    HEADERS_CASH_FUND,
+    cashFundMapper.HEADERS,
     config.ggSheetCashFund.sheetID,
   );
 
-  const voucherDateIndex = HEADERS_CASH_FUND.indexOf("Ngày ghi nhận");
+  const voucherDateIndex =cashFundMapper.HEADERS.indexOf("Ngày ghi nhận");
   if (voucherDateIndex === -1) {
     throw new Error(`Not found column voucher date`);
   }
@@ -64,11 +65,11 @@ async function buildCashFund() {
   await ensureSheetSize(
     sheetName,
     endRow,
-    HEADERS_CASH_FUND.length,
+   cashFundMapper.HEADERS.length,
     config.ggSheetCashFund.sheetID,
   );
 
-  const lastColumn = columnNumberToLetter(HEADERS_CASH_FUND.length);
+  const lastColumn = columnNumberToLetter(cashFundMapper.HEADERS.length);
 
   await updateValues(
     `'${sheetName}'!A${startRow}:${lastColumn}${endRow}`,
@@ -122,18 +123,18 @@ async function buildBatchCashFund() {
     await ensureSheet(
       sheetName,
       Math.max(endRow, 1000),
-      HEADERS_CASH_FUND.length,
+     cashFundMapper.HEADERS.length,
       sheetID,
     );
-    await ensureHeaders(sheetName, HEADERS_CASH_FUND, sheetID);
-    const voucherDateIndex = HEADERS_CASH_FUND.indexOf("Ngày ghi nhận");
+    await ensureHeaders(sheetName,cashFundMapper.HEADERS, sheetID);
+    const voucherDateIndex = cashFundMapper.HEADERS.indexOf("Ngày ghi nhận");
     if (voucherDateIndex === -1) {
       throw new Error(`Not found column voucher date`);
     }
     await formatDateTimeColumn(sheetName, voucherDateIndex, sheetID);
-    await ensureSheetSize(sheetName, endRow, HEADERS_CASH_FUND.length, sheetID);
+    await ensureSheetSize(sheetName, endRow,cashFundMapper.HEADERS.length, sheetID);
 
-    const lastColumn = columnNumberToLetter(HEADERS_CASH_FUND.length);
+    const lastColumn = columnNumberToLetter(cashFundMapper.HEADERS.length);
 
     await updateValues(
       `'${sheetName}'!A${startRow}:${lastColumn}${endRow}`,
@@ -277,10 +278,32 @@ async function incremental() {
     skipped: totalSkip,
   };
 }
+
+async function migrateAddInvoiceTypeColumn(){
+  const sheetName = config.ggSheetCashFund.sheetName;
+  const sheetID = config.ggSheetCashFund.sheetID;
+
+  await sheetServices.insertColumn(sheetName, 7, sheetID);
+  await sheetServices.ensureHeaders(sheetName, cashFundMapper.HEADERS,sheetID);
+  return {
+    success:true,
+    message:"Insert cột diễn giải"
+  }
+}
+
+async function backfillInvoiceTypeColumn(){
+  const limit = config.ggSheetCashFund.limit;
+  const sheetName = config.ggSheetCashFund.cashFundSheetName;
+  const sheetID = config.ggSheetCashFund.sheetID;
+  const syncState = await cashFundSyncState.get();
+  const page = Number(syncState.backfillPage) || 1;
+
+}
 const cashFundSync = {
   buildCashFund,
   buildBatchCashFund,
   buildCashFundIdSet,
   incremental,
+  migrateAddInvoiceTypeColumn
 };
 module.exports = cashFundSync;
