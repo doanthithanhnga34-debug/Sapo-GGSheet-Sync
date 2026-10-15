@@ -106,14 +106,14 @@ async function deleteSheetRow(sheetName, rowNumber, spreadsheetId) {
   });
   return true;
 }
-async function batchUpdateValues(data) {
+async function batchUpdateValues(data, sheetId) {
   if (!data.length) {
     return;
   }
   const sheets = await getSheetsClient();
 
   await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: config.ggSheetCustomer.sheetID,
+    spreadsheetId: sheetId,
     requestBody: {
       valueInputOption: "RAW",
       data,

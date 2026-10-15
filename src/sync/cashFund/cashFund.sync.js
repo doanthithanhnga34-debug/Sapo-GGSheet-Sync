@@ -223,7 +223,6 @@ async function incremental() {
       voucherDateMin,
       voucherDateMax,
     });
-    console.log(`cash fund page=${page}, count=${cashFunds.length} `);
     if (!cashFunds.length) {
       break;
     }
@@ -238,9 +237,6 @@ async function incremental() {
         totalSkip++;
         continue;
       }
-      console.log(
-        `new bill id=${id}, code=${cashFund}, date=${cashFund.voucher_date}`,
-      );
       newItems.push({
         id,
         voucherDate: cashFund.voucher_date,
@@ -262,12 +258,6 @@ async function incremental() {
     lastVoucherDate: runStartedAt,
     status: "idle",
   });
-  console.log(
-    `[CASH FUND DONE] ` +
-      `sapo=${totalSapo}, ` +
-      `added=${newRows.length}, ` +
-      `skip=${totalSkip}`,
-  );
 
   return {
     success: true,

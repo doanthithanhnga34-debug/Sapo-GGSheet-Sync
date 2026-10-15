@@ -4,16 +4,19 @@ const app = express();
 
 const customerRouter = require("./routes/customer.route");
 const cashFundRouter = require("./routes/cashFund.route");
+const orderRouter = require("./routes/order.route");
 
 app.use(express.json());
 app.use('/sync/customers',customerRouter);
 app.use('/cashFund', cashFundRouter);
+app.use('/order', orderRouter);
 app.get("/health", (req, res) => {
   res.json({
     success: true,
     service: "sapo-customer-sync",
     time: new Date().toISOString(),
   });
+  
 });
 
 

@@ -77,7 +77,7 @@ async function writeUpdates(customerSheet, updates) {
             ]
         })
     }
-    await batchUpdateValues(data);
+    await batchUpdateValues(data, config.ggSheetCustomer.sheetID);
   }
 }
 
@@ -107,7 +107,7 @@ async function writeAdds(customerSheet, additions, maxCustomerRow, maxIndexRow){
             range:`'${INDEX_SHEET}'!A${indexStartRow}:E${indexEndRow}`,
             values:indexRows,
         }
-    ])
+    ], config.ggSheetCustomer.sheetID)
 }
 
 
