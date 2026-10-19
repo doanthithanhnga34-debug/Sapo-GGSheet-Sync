@@ -1,4 +1,5 @@
 const fireStore = require("@google-cloud/firestore");
+const fs = require("../firestore/index.firestore");
 
 const db = new fireStore({
   projectId: "solar-catfish-508808-p7",
@@ -13,34 +14,11 @@ const DEFAULT_STATE = {
   status: "idle",
 };
 async function get() {
-  const ref = db.collection(COLLECTION).doc(DOCUMENT);
-  const doc = await ref.get();
-  if (!doc.exists) {
-    return {
-      ...DEFAULT_STATE,
-    };
-  }
-  const data = doc.data();
-  return {
-    ...DEFAULT_STATE,
-    ...data,
-  };
+  return fs.getDocument(COLLECTION,DOCUMENT,DEFAULT_STATE)
 }
 
 async function set(data = {}) {
-  const current = await get();
-
-  const ref = await db.collection(COLLECTION).doc(DOCUMENT);
-  await ref.set(
-    {
-      ...data,
-      updateAt: new Date(),
-    },
-    {
-      merge: true,
-    },
-  );
-  return true;
+  return fs.setDocument(COLLECTION,DOCUMENT,data)
 }
 
 const cashFundSyncState = {

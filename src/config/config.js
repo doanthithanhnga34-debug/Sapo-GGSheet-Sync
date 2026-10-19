@@ -19,6 +19,7 @@ const config = {
     'facebook_shopping',
     'sendo'
   ],
+  
   sapo: {
     apiKey: process.env.SAPO_API_KEY,
     apiSecret: process.env.SAPO_API_SECRET,
@@ -27,6 +28,9 @@ const config = {
     customerLimit: 250,
     cashFundLimit:250,
     orderLimit:250
+  },
+  sheetProduct:{
+    id:process.env.GG_SHEET_ID_PRODUCT
   },
   ggSheetCustomer: {
     sheetID: process.env.GG_SHEET_ID_CUSTOMER,
