@@ -59,13 +59,13 @@ function buildBranchRows({ branch, dataMaps }) {
     }
 
     rows.push(
-     productMapper.mapVariantToRow({
+     productMapper.mapVariantToRow(
         variant,
         locationId,
         product,
         inventoryItem,
         inventoryLevel,
-      }),
+      ),
     );
   }
 
