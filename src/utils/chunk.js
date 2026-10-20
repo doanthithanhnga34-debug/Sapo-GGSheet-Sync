@@ -2,10 +2,23 @@
 
 'use strict'
 
-const chunk = (arr,size) =>{
-    Array.from({length:Math.ceil(arr.length / size)}, (_,i)=> arr.slice( i* size, i*size +size));
+
+function chunk(array, size) {
+  const chunks = [];
+
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+
+  return chunks;
 }
+
 
 const toApiTime = (date) =>{
     new Date(date).toISOString().replace(/\.\d{3}Z$/,'Z')
+}
+
+module.exports ={
+    chunk,
+    toApiTime
 }

@@ -6,19 +6,24 @@ const db = new fireStore({
 })
 
 const COLLECTION = 'location'
-const DOCUMENT ='locationId'
 
-async function get(){
-    return fs.getDocument(COLLECTION,DOCUMENT)
+
+async function get(locationId){
+    return fs.getDocument(COLLECTION,locationId)
 }
 
 async function set(locationId,data={}){
     return fs.setDocument(COLLECTION,locationId,data)
 }
+async function getAll(){
+    const snapshot = await db.collection(COLLECTION).get();
+    return snapshot.docs.map((doc)=>doc.data());
+}
 
 const locationFS = {
     get,
-    set
+    set,
+    getAll
 }
 
 module.exports = locationFS

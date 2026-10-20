@@ -7,8 +7,19 @@ async function buildLocations(req,res){
     return res.json(result)
 }
 
+async function buildVariants(req,res){
+    const result = await productSync.buildTestVariantAllBranch();
+    return res.json(result)
+}
+async function test(req,res){
+    const result = await productSync.testProductMapping();
+    return res.json(result)
+}
+
 const productController = {
-buildLocations
+buildLocations,
+buildVariants,
+test
 }
 
 module.exports = productController

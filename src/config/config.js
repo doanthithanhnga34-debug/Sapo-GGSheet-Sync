@@ -27,7 +27,8 @@ const config = {
     baseUrl: process.env.SAPO_BASE_URL,
     customerLimit: 250,
     cashFundLimit:250,
-    orderLimit:250
+    orderLimit:250,
+    productLimit:250
   },
   sheetProduct:{
     id:process.env.GG_SHEET_ID_PRODUCT
