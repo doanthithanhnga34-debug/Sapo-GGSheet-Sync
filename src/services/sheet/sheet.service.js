@@ -4,6 +4,7 @@ const path = require("path");
 
 const config = require("../../config/config");
 const { columnNumberToLetter } = require("../../utils/sheet.helper");
+const productMapper = require("../../sync/product/product.mapper");
 
 let sheetsClient;
 async function getSheetsClient() {
@@ -325,6 +326,96 @@ async function insertColumn(sheetName, columnIndex, spreadsheetId) {
   return true;
 }
 
+async function buildSheetIndex({ spreadsheetId, sheetName }) {
+  const sheets = await getSheetsClient()
+   const escapedName = String(sheetName).replace(/'/g, "''");
+  const range = `'${sheetName.replace(/'/g, "''")}'!A2:AE`;
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+
+  const rows = response.data.values || [];
+  const index = new Map();
+
+  rows.forEach((row, i) => {
+    const uniqueId = String(row[0] ?? "").trim();
+    if (!uniqueId) return;
+    if (index.has(uniqueId)) {
+      throw new Error(`Duplicate hss_unique_id: ${uniqueId}`);
+    }
+    index.set(uniqueId, {
+      rowNo: i + 2,
+      values: Array.from(
+        { length: productMapper.HEADERS.length },
+        (_, column) => row[column] ?? "",
+      ),
+    });
+  });
+  return {
+    sheetName,
+    index,
+    existingRows:index.size
+  }
+}
+
+async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return 0;
+  }
+
+  const sheets = await getSheetsClient();
+
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties(sheetId,title)",
+  });
+  const targetSheet = spreadsheet.data.sheets.find(
+    (item) => item.properties.title === sheetName,
+  );
+
+  if (!targetSheet) {
+    throw new Error(`Sheet not found: ${sheetName}`);
+  }
+  const sheetId = targetSheet.properties.sheetId;
+  const rowCount = rows.length;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          insertDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: 1,
+              endIndex: 1 + rowCount,
+            },
+            inheritFromBefore: false,
+          },
+        },
+      ],
+    },
+  });
+
+  const lastColumn = columnNumberToLetter(rows[0].length);
+  const escapedSheetName = sheetName.replace(/'/g, "''");
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${escapedSheetName}'!A2:${lastColumn}${rowCount + 1}`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: rows,
+    },
+  });
+
+  console.log(`Inserted ${rowCount} rows at top`);
+}
+
 const sheetServices = {
   getSheetsClient,
   getValues,
@@ -338,5 +429,7 @@ const sheetServices = {
   batchUpdateValues,
   deleteSheetRow,
   deleteRowsBatch,
+  buildSheetIndex,
+  insertRowsAtTop
 };
 module.exports = sheetServices;

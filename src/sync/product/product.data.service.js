@@ -1,4 +1,4 @@
-const productMapper = require('./product.mapper')
+const productMapper = require("./product.mapper");
 
 function buildDataMaps({ products, inventoryItems, inventoryLevels }) {
   return {
@@ -57,9 +57,9 @@ function buildBranchRows({ branch, dataMaps }) {
     if (String(inventoryItem.variant_id) !== String(variant.id)) {
       throw new Error(`Inventory Item mismatch: variant ${variant.id}`);
     }
-
+   
     rows.push(
-     productMapper.mapVariantToRow(
+      productMapper.mapVariantToRow(
         variant,
         locationId,
         product,

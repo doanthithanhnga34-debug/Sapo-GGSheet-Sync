@@ -8,18 +8,28 @@ async function buildLocations(req,res){
 }
 
 async function buildVariants(req,res){
-    const result = await productSync.buildTestVariantAllBranch();
+    const result = await productSync.buildVariantAllBranch();
     return res.json(result)
 }
 async function test(req,res){
     const result = await productSync.testProductMapping();
     return res.json(result)
 }
+async function syncAll(req, res) {
+  const dryRun = req.body?.dryRun !== false;
+
+  const result = await productSync.syncAllBranches({
+    dryRun,
+  });
+
+  res.json(result);
+}
 
 const productController = {
 buildLocations,
 buildVariants,
-test
+test,
+syncAll
 }
 
 module.exports = productController
