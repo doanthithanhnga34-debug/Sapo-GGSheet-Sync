@@ -6,50 +6,132 @@ function normalize(value) {
     : String(value).trim();
 }
 
-function buildDiff(mappedRows, sheetIndex){
+// function buildDiff(mappedRows, sheetIndex){
+//   const inserts = [];
+//   const updates =[];
+//   const seen = new Set();
+
+//   let skipped = 0;
+//   for(const row of mappedRows){
+//     const uniqueId = String(row[0]);
+//     if(seen.has(uniqueId)){
+//       throw new Error(`Duplicate mapped ID: ${uniqueId}`);
+//     }
+//     seen.add(uniqueId);
+
+//     const existing = sheetIndex.get(uniqueId);
+//     if(!existing){
+//       inserts.push(row);
+//       continue;
+//     }
+//     const changes = [];
+//     for(const header of productMapper.SYNC_HEADERS){
+//       const columnIndex = productMapper.COLUMN_INDEX[header];
+//       const oldValue = existing.values[columnIndex];
+//       const newValue = row[columnIndex];
+
+//       if(String(normalize(oldValue)) !== String(normalize(newValue))){
+//         changes.push({
+//           header,
+//           columnIndex,
+//           oldValue,
+//           newValue
+//         })
+//       }
+//       if(changes.length === 0){
+//         skipped++;
+//         continue;
+//       }
+//       updates.push({
+//         uniqueId,
+//         rowNo:existing.rowNo,
+//         changes
+//       })
+//     }
+//   }
+//    return {
+//     inserts,
+//     updates,
+//     skipped,
+//     stats: {
+//       inserted: inserts.length,
+//       updated: updates.length,
+//       skipped,
+//     },
+//   };
+// }
+
+function buildDiff(mappedRows, sheetIndex) {
   const inserts = [];
-  const updates =[];
-  const seen = new Set();
+  const updates = [];
 
   let skipped = 0;
-  for(const row of mappedRows){
+
+  const seenIds = new Set();
+
+  for (const row of mappedRows) {
     const uniqueId = String(row[0]);
-    if(seen.has(uniqueId)){
-      throw new Error(`Duplicate mapped ID: ${uniqueId}`);
+
+    if (seenIds.has(uniqueId)) {
+      throw new Error(
+        `[Product Diff] Duplicate uniqueId: ${uniqueId}`
+      );
     }
-    seen.add(uniqueId);
+
+    seenIds.add(uniqueId);
 
     const existing = sheetIndex.get(uniqueId);
-    if(!existing){
+
+    // Sản phẩm mới
+    if (!existing) {
       inserts.push(row);
       continue;
     }
+
     const changes = [];
-    for(const header of productMapper.SYNC_HEADERS){
-      const columnIndex = productMapper.COLUMN_INDEX[header];
+
+    // So sánh các cột cần đồng bộ
+    for (const header of productMapper.SYNC_HEADERS) {
+      const columnIndex =
+        productMapper.COLUMN_INDEX[header];
+
       const oldValue = existing.values[columnIndex];
       const newValue = row[columnIndex];
 
-      if(String(normalize(oldValue)) !== String(normalize(newValue))){
+      if (normalize(oldValue) !== normalize(newValue)) {
         changes.push({
           header,
           columnIndex,
           oldValue,
-          newValue
-        })
+          newValue,
+        });
       }
-      if(changes.length === 0){
-        skipped++;
-        continue;
-      }
+    }
+
+    // Mỗi sản phẩm chỉ được phân loại một lần
+    if (changes.length > 0) {
       updates.push({
         uniqueId,
-        rowNo:existing.rowNo,
-        changes
-      })
+        rowNo: existing.rowNo,
+        changes,
+      });
+    } else {
+      skipped++;
     }
   }
-   return {
+
+  const total =
+    inserts.length +
+    updates.length +
+    skipped;
+
+  if (total !== mappedRows.length) {
+    throw new Error(
+      `[Product Diff] Invalid total: ${total}/${mappedRows.length}`
+    );
+  }
+
+  return {
     inserts,
     updates,
     skipped,
@@ -57,6 +139,10 @@ function buildDiff(mappedRows, sheetIndex){
       inserted: inserts.length,
       updated: updates.length,
       skipped,
+      updateCells: updates.reduce(
+        (sum, item) => sum + item.changes.length,
+        0
+      ),
     },
   };
 }

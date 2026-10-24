@@ -1,19 +1,22 @@
+const { syncCostPrice } = require("../sync/product/costPrice/costPrice.sync");
 const productSync = require("../sync/product/product.sync");
 
-
-
-async function buildLocations(req,res){
-    const result = await productSync.buildLocations();
-    return res.json(result)
+async function buildLocations(req, res) {
+  const result = await productSync.buildLocations();
+  return res.json(result);
 }
 
-async function buildVariants(req,res){
-    const result = await productSync.buildVariantAllBranch();
-    return res.json(result)
+async function buildVariants(req, res) {
+  const result = await productSync.buildVariantAllBranch();
+  return res.json(result);
 }
-async function test(req,res){
-    const result = await productSync.testProductMapping();
-    return res.json(result)
+async function buildProducts(req, res) {
+  const result = await productSync.buildInventoryMappings();
+  return res.json(result);
+}
+async function test(req, res) {
+  const result = await productSync.allVariantIncremental({ dryRun: false });
+  return res.json(result);
 }
 async function syncAll(req, res) {
   const dryRun = req.body?.dryRun !== false;
@@ -25,11 +28,27 @@ async function syncAll(req, res) {
   res.json(result);
 }
 
-const productController = {
-buildLocations,
-buildVariants,
-test,
-syncAll
+async function syncCost(req, res) {
+  try {
+    const result = await syncCostPrice({ dryRun: false });
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("[Cost Price Controller]", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 }
 
-module.exports = productController
+const productController = {
+  buildLocations,
+  buildVariants,
+  test,
+  syncAll,
+  buildProducts,
+  syncCost,
+};
+
+module.exports = productController;

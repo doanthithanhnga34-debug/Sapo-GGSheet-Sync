@@ -105,8 +105,27 @@ async function getByIds(inventoryItemIds) {
   return [...itemMap.values()];
 }
 
+async function inventoryItemMapping(products){
+  const mappings = new Map();
+  for(const product of products){
+    for(const variant of product.variants){
+      if(variant.id == null || variant.inventory_item_id == null){
+        continue;
+      }
+      const inventoryItemId = String(variant.inventory_item_id);
+      mappings.set(inventoryItemId,{
+        inventoryItemId,
+        variantId:String(variant.id),
+        productId:String(product.id)
+      });
+    }
+  }
+  return [...mappings.values()]
+}
+
 const inventoryItemService ={
-    getByIds
+    getByIds,
+    inventoryItemMapping
 }
 
 module.exports = inventoryItemService

@@ -29,6 +29,12 @@ function getLatestModifiedOn(customers, fallback) {
   return latest;
 }
 
+function getModifiedOnMinProduct(checkpoint) {
+  return new Date(
+    new Date(checkpoint).getTime() - 12 * 60 * 1000
+  ).toISOString();
+}
+
 function subtractMonthFromISO(isoString, months=1){
   const date = new Date(isoString);
 
@@ -49,5 +55,6 @@ function formatNumberAmount(value){
 module.exports ={
     subtractMinutes,
     getLatestModifiedOn,
-    formatNumberAmount
+    formatNumberAmount,
+    getModifiedOnMinProduct
 }

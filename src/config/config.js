@@ -31,7 +31,8 @@ const config = {
     productLimit:250
   },
   sheetProduct:{
-    id:process.env.GG_SHEET_ID_PRODUCT
+    id:process.env.GG_SHEET_ID_PRODUCT,
+    incrementalStartAt:process.env.PRODUCT_INCREMENTAL_START_AT
   },
   ggSheetCustomer: {
     sheetID: process.env.GG_SHEET_ID_CUSTOMER,

@@ -4,9 +4,7 @@ const { sapoGet } = require("../sapo.service");
 
 
 
-
-
-async function getVariants({ page = 1, limit = 250 , locationId=''}) {
+async function getVariants({ page = 1, limit = 250 , locationId='', modifiedOnMin=''}) {
   const params = new URLSearchParams({
     page: page,
     limit: limit,
@@ -14,7 +12,8 @@ async function getVariants({ page = 1, limit = 250 , locationId=''}) {
     sort_direction:'desc',
     inventory_management:'bizweb',
     fields:'product',
-    types:'normal'
+    types:'normal',
+    modified_on_min:modifiedOnMin
   });
 
   const data = await sapoGet(
@@ -37,7 +36,6 @@ async function fetchBranchVariants(location) {
       limit: config.sapo.productLimit,
     });
 
-    // Giả sử getVariants trả về mảng
     variants.push(...data);
 
     if (data.length < config.sapo.productLimit) {

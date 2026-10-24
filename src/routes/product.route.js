@@ -5,6 +5,8 @@ const productRouter = express.Router();
 
 productRouter.get("/locations", asyncHandler(productController.buildLocations));
 productRouter.get("/testVar", asyncHandler(productController.buildVariants));
+productRouter.get("/testProd", asyncHandler(productController.buildProducts));
 productRouter.get("/test", asyncHandler(productController.test));
+productRouter.get("/syncCostPrice", asyncHandler(productController.syncCost));
 
 module.exports = productRouter;
