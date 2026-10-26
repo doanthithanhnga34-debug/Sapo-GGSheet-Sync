@@ -41,8 +41,33 @@ async function getAllMappings(){
     const snapshot = await db.collection(COLLECTION).get();
     return snapshot.docs.map((doc) => doc.data())
 }
+
+async function deleteMappingsByIds(inventoryItemIds){
+  if(!Array.isArray(inventoryItemIds)){
+    throw new Error("inventoryItemIds must be an array")
+  }
+  const ids = [... new Set(inventoryItemIds.map(String))];
+  if(ids.length === 0){
+    return {deleted:0}
+  }
+  let deleted = 0;
+  const BATCH_SIZE = 50;
+  for(let i=0; i<ids.length; i+= BATCH_SIZE){
+    const batch= db.batch();
+    const batchIds = ids.slice(i,i+BATCH_SIZE);
+    for(const id of batchIds){
+        const ref = db.collection(COLLECTION).doc(id);
+        batch.delete(ref);
+    }
+    await batch.commit();
+    deleted += batchIds.length;
+
+  }
+  return {deleted}
+}
 const inventoryItemFS ={
     saveMappings,
-    getAllMappings
+    getAllMappings,
+    deleteMappingsByIds
 }
 module.exports = inventoryItemFS

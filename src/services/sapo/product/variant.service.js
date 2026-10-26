@@ -13,7 +13,7 @@ async function getVariants({ page = 1, limit = 250 , locationId='', modifiedOnMi
     inventory_management:'bizweb',
     fields:'product',
     types:'normal',
-    modified_on_min:modifiedOnMin
+    modified_on_min:modifiedOnMin || ""
   });
 
   const data = await sapoGet(

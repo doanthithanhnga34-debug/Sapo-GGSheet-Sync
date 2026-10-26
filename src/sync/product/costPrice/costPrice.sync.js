@@ -1,4 +1,3 @@
-
 const sheetServices = require("../../../services/sheet/sheet.service");
 const inventoryItemService = require("../../../services/sapo/product/inventory-item.service");
 const inventoryItemFS = require("../../../services/firestore/inventory-item.firestore");
@@ -81,20 +80,19 @@ async function syncCostPrice({ dryRun = true } = {}) {
   });
   const inventoryItems = await inventoryItemService.getByIds(inventoryItemIds);
   const returnedIds = new Set(inventoryItems.map((item) => String(item.id)));
-   const missingIds = inventoryItemIds.filter(
-    (id) => !returnedIds.has(id)
-  );
-    if (missingIds.length > 0) {
-    throw new Error(
-      `[Cost Price] Missing ${missingIds.length} inventory items. ` +
-      `Sample: ${missingIds.slice(0, 5).join(", ")}`
-    );
+  const missingIds = inventoryItemIds.filter((id) => !returnedIds.has(id));
+  if (missingIds.length > 0) {
+    console.warn("[Cost Price] Missing Inventory Items", {
+      total: missingIds.length,
+      sample: missingIds.slice(0, 10),
+    });
+    // throw new Error(
+    //   `[Cost Price] Missing ${missingIds.length} inventory items. ` +
+    //     `Sample: ${missingIds.slice(0, 5).join(", ")}`,
+    // );
   }
-    const costItems = buildCostItems(
-    mappings,
-    inventoryItems
-  );
- const locations = await locationFS.getAll();
+  const costItems = buildCostItems(mappings, inventoryItems);
+  const locations = await locationFS.getAll();
 
   if (!Array.isArray(locations) || locations.length === 0) {
     throw new Error("[Cost Price] No locations found");
@@ -113,21 +111,17 @@ async function syncCostPrice({ dryRun = true } = {}) {
         sheetName,
       });
 
-      // 7. Đọc Google Sheets
       const sheet = await sheetServices.buildSheetIndex({
         spreadsheetId: config.sheetProduct.id,
         sheetName,
       });
 
-      // 8. So sánh giá vốn
       const diff = buildCostPriceDiff({
         locationId,
         sheetIndex: sheet.index,
         costItems,
       });
 
-
-      // 9. Chỉ ghi các ô thay đổi
       const writeResult = await writeCostPriceUpdates({
         spreadsheetId: config.sheetProduct.id,
         sheetName,
@@ -143,8 +137,7 @@ async function syncCostPrice({ dryRun = true } = {}) {
         ...diff.stats,
         written: writeResult.written,
         batches: writeResult.batches,
-        durationSeconds:
-          (Date.now() - branchStartedAt) / 1000,
+        durationSeconds: (Date.now() - branchStartedAt) / 1000,
         sampleUpdates: diff.updates.slice(0, 3),
       });
     } catch (error) {
@@ -159,36 +152,25 @@ async function syncCostPrice({ dryRun = true } = {}) {
         sheetName,
         success: false,
         error: error.message,
-        durationSeconds:
-          (Date.now() - branchStartedAt) / 1000,
+        durationSeconds: (Date.now() - branchStartedAt) / 1000,
       });
     }
   }
-  
+
   return {
     dryRun,
     totalMappings: mappings.length,
     totalInventoryItems: inventoryItems.length,
     totalLocations: locations.length,
-    successLocations:
-      results.filter((r) => r.success).length,
-    failedLocations:
-      results.filter((r) => !r.success).length,
-    totalUpdates: results.reduce(
-      (sum, r) => sum + (r.updated || 0),
-      0
-    ),
-    totalWritten: results.reduce(
-      (sum, r) => sum + (r.written || 0),
-      0
-    ),
-    durationSeconds:
-      (Date.now() - startedAt) / 1000,
+    successLocations: results.filter((r) => r.success).length,
+    failedLocations: results.filter((r) => !r.success).length,
+    totalUpdates: results.reduce((sum, r) => sum + (r.updated || 0), 0),
+    totalWritten: results.reduce((sum, r) => sum + (r.written || 0), 0),
+    durationSeconds: (Date.now() - startedAt) / 1000,
     branches: results,
   };
-
 }
 
-module.exports ={
-    syncCostPrice
-}
+module.exports = {
+  syncCostPrice,
+};

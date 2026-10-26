@@ -78,6 +78,7 @@ async function deleteSheetRow(sheetName, rowNumber, spreadsheetId) {
   const sheets = await getSheetsClient();
   const spreadsheet = await sheets.spreadsheets.get({
     spreadsheetId,
+    fields: "sheets(properties(sheetId,title))",
   });
   const sheet = spreadsheet.data.sheets.find(
     (item) => item.properties.title === sheetName,
@@ -139,8 +140,14 @@ async function deleteRowsBatch(rows, sheetName, spreadsheetId) {
   }
   const sheetId = sheet.properties.sheetId;
 
-  const rowsToDelete = [...new Set(rows.map(Number))].sort((a, b) => b - a);
+  const rowsToDelete = [...new Set(rows.map(Number))]
+    .filter((row) => Number.isInteger(row) && row >= 2)
+    .sort((a, b) => b - a);
   console.log(`delete rows ${rowsToDelete}`);
+
+  if (rowsToDelete.length !== new Set(rows.map(Number)).size) {
+    throw new Error("[Sheet] Invalid row numbers");
+  }
   const requests = rowsToDelete.map((rowNumber) => ({
     deleteDimension: {
       range: {
@@ -327,8 +334,8 @@ async function insertColumn(sheetName, columnIndex, spreadsheetId) {
 }
 
 async function buildSheetIndex({ spreadsheetId, sheetName }) {
-  const sheets = await getSheetsClient()
-   const escapedName = String(sheetName).replace(/'/g, "''");
+  const sheets = await getSheetsClient();
+  const escapedName = String(sheetName).replace(/'/g, "''");
   const range = `'${sheetName.replace(/'/g, "''")}'!A2:AE`;
 
   const response = await sheets.spreadsheets.values.get({
@@ -357,8 +364,8 @@ async function buildSheetIndex({ spreadsheetId, sheetName }) {
   return {
     sheetName,
     index,
-    existingRows:index.size
-  }
+    existingRows: index.size,
+  };
 }
 
 async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
@@ -430,6 +437,6 @@ const sheetServices = {
   deleteSheetRow,
   deleteRowsBatch,
   buildSheetIndex,
-  insertRowsAtTop
+  insertRowsAtTop,
 };
 module.exports = sheetServices;

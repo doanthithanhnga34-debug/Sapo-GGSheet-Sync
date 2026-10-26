@@ -44,6 +44,7 @@ const SYNC_HEADERS = [
   "Tên Hàng",
   "Thương Hiệu",
   "Giá Bán",
+  "Tồn Kho",
   "Đơn Vị Tính",
   "Hình Ảnh",
   "Đang Kinh Doanh",

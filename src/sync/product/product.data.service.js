@@ -37,6 +37,34 @@ function buildBranchRows({ branch, dataMaps }) {
     const inventoryLevel = inventoryLevelMap.get(
       `${variant.inventory_item_id}_${locationId}`,
     );
+    if (String(variant.id) === "233135930") {
+      console.log("[INVENTORY DEBUG]", {
+        locationId,
+        variantId: variant.id,
+        inventoryItemId: variant.inventory_item_id,
+        inventoryKey: `${variant.inventory_item_id}_${locationId}`,
+
+        inventoryLevel: {
+          variantId: inventoryLevel?.variant_id,
+          inventoryItemId: inventoryLevel?.inventory_item_id,
+          locationId: inventoryLevel?.location_id,
+          available: inventoryLevel?.available,
+          onHand: inventoryLevel?.on_hand,
+          committed: inventoryLevel?.committed,
+        },
+      });
+    }
+    if (
+  String(inventoryLevel.variant_id) !== String(variant.id) ||
+  String(inventoryLevel.location_id) !== locationId
+) {
+  throw new Error(
+    `[Inventory Level Mismatch] ` +
+    `variant=${variant.id}, ` +
+    `inventoryItem=${variant.inventory_item_id}, ` +
+    `location=${locationId}`
+  );
+}
 
     if (!product) {
       throw new Error(`Product not found: ${variant.product_id}`);
@@ -57,7 +85,7 @@ function buildBranchRows({ branch, dataMaps }) {
     if (String(inventoryItem.variant_id) !== String(variant.id)) {
       throw new Error(`Inventory Item mismatch: variant ${variant.id}`);
     }
-   
+
     rows.push(
       productMapper.mapVariantToRow(
         variant,

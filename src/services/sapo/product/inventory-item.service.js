@@ -109,6 +109,9 @@ async function inventoryItemMapping(products){
   const mappings = new Map();
   for(const product of products){
     for(const variant of product.variants){
+         if (variant.type !== "normal") {
+        continue;
+      }
       if(variant.id == null || variant.inventory_item_id == null){
         continue;
       }

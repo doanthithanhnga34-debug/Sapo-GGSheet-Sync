@@ -1,4 +1,5 @@
 const { syncCostPrice } = require("../sync/product/costPrice/costPrice.sync");
+const { reconcileDeletedVariants, reconcileAllLocations } = require("../sync/product/product.reconcile");
 const productSync = require("../sync/product/product.sync");
 
 async function buildLocations(req, res) {
@@ -17,6 +18,17 @@ async function buildProducts(req, res) {
 async function test(req, res) {
   const result = await productSync.allVariantIncremental({ dryRun: false });
   return res.json(result);
+}
+async function testOneBranch(req,res){
+  const result = await productSync.testProductMapping();
+  return res.json(result)
+}
+async function syncOneBranch(req, res){
+  const result = await productSync.syncOneBranch({
+    locationId:'924281',
+    locationName:"Lê Đình Cẩn",
+    dryRun:false
+  })
 }
 async function syncAll(req, res) {
   const dryRun = req.body?.dryRun !== false;
@@ -42,6 +54,15 @@ async function syncCost(req, res) {
   }
 }
 
+async function reconcileProduct(req, res){
+const result = await reconcileAllLocations();
+return res.json(result)
+}
+
+async function buildMappingInventoryLevel(req, res){
+const result = await productSync.buildInventoryMappings();
+return res.json(result)
+}
 const productController = {
   buildLocations,
   buildVariants,
@@ -49,6 +70,10 @@ const productController = {
   syncAll,
   buildProducts,
   syncCost,
+  testOneBranch,
+  reconcileProduct,
+  buildMappingInventoryLevel,
+  syncOneBranch
 };
 
 module.exports = productController;

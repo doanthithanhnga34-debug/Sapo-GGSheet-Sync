@@ -7,6 +7,11 @@ const locationService = require("../../services/sapo/product/location.service");
 const productServices = require("../../services/sapo/product/product.service");
 const variantService = require("../../services/sapo/product/variant.service");
 const { buildDiff } = require("../../services/sheet/product/diff.sheet");
+const logService = require("../../services/sheet/product/log/log.sheet");
+const {
+  ensureSyncLogSheet,
+  writeSyncLog,
+} = require("../../services/sheet/product/log/log.sheet");
 const {
   writeProductDiff,
 } = require("../../services/sheet/product/product.sheet");
@@ -16,6 +21,7 @@ const { getModifiedOnMinProduct } = require("../../utils/formatDate");
 const { collectIds } = require("./IdsCollectors");
 const { buildBranchRows, buildDataMaps } = require("./product.data.service");
 const productMapper = require("./product.mapper");
+const { randomUUID } = require("node:crypto");
 
 async function buildLocations() {
   const data = await locationService.getAllLocations({
@@ -173,8 +179,8 @@ async function testProductMapping() {
   const variantResults = await buildVariantAllBranch({
     includeVariants: true,
   });
-  const locationId = "925711";
-  const locationName = "Huỳnh Thiện Lộc";
+  const locationId = "924281";
+  const locationName = "Lê Đình Cẩn";
 
   const branch = variantResults.branches.find(
     (item) => String(item.locationId) === locationId,
@@ -243,20 +249,43 @@ async function testProductMapping() {
 }
 
 // Sync initial product to sheet
-async function syncOneBranch({ locationId, locationName, dryRun }) {
-  const variantResults = await buildVariantAllBranch({
-    includeVariants: true,
-  });
-  const branch = variantResults.branches.find(
-    (item) => String(item.locationId) === locationId,
-  );
+async function syncOneBranch({
+  locationId,
+  locationName,
+  dryRun = true,
+  branch: providedBranch = null,
+}) {
+  let branch = providedBranch;
 
-  if (!branch || !branch.success) {
-    throw new Error(`Cannot fetch variants for location ${locationId}`);
+  if (!branch) {
+    const variants = [];
+    let page = 1;
+    const limit = config.sapo.sheetProduct;
+    while (true) {
+      const data = await variantService.getVariants({
+        locationId,
+        page,
+        limit,
+      });
+      if (!Array.isArray(data)) {
+        throw new Error(
+          `[Product Sync] Invalid variants response: ${locationName}`,
+        );
+      }
+      variants.push(...data);
+
+      if (data.length < limit) break;
+      page++;
+    }
+    branch = {
+      locationId,
+      locationName,
+      success: true,
+      variants,
+    };
   }
-  const { productIds, inventoryItemIds, locationInventoryMap } = collectIds([
-    branch,
-  ]);
+
+  const { productIds, inventoryItemIds } = collectIds([branch]);
 
   const products = await productServices.getByIds(productIds);
   const inventoryItems = await inventoryItemService.getByIds(inventoryItemIds);
@@ -283,60 +312,58 @@ async function syncOneBranch({ locationId, locationName, dryRun }) {
       config.sheetProduct.id,
     );
   }
-  const result = buildBranchRows({
+  const mapped = buildBranchRows({
     branch,
     dataMaps,
   });
-  const sheetStartedAt = Date.now();
-  const sheetResult = await processProductSheet({
+
+  return processProductSheet({
     branch,
-    mappedRows: result.rows,
+    mappedRows: mapped.rows,
     spreadsheetId: config.sheetProduct.id,
-    dryRun: dryRun,
+    dryRun,
   });
-  const sheet = await sheetServices.buildSheetIndex({
-    spreadsheetId: config.sheetProduct.id,
-    sheetName: locationName,
-  });
-  return {
-    ...sheetResult,
-  };
 }
 
-async function syncAllBranches({ dryRun = true } = {}) {
+async function syncAllBranches({ dryRun = false } = {}) {
   const startedAt = Date.now();
-  const variantResults = await buildVariantAllBranch({
-    includeVariants: true,
-  });
-
-  const locations = await locationFS.getAll();
+  const variantsResults = await buildVariantAllBranch();
   const results = [];
 
-  for (const [index, location] of locations.entries()) {
+  for (const [index, branch] of variantsResults.branches.entries()) {
     const branchStartedAt = Date.now();
     console.log(
-      `[Product Sync] ${index + 1}/${locations.length} - ${location.name}`,
+      `[Product Sync] ${index + 1}/${variantsResults.branches.length} - ${branch.locationName}`,
     );
+
+    if (!branch.success) {
+      results.push({
+        locationId: String(branch.locationId),
+        locationName: branch.locationName,
+        success: false,
+        error: branch.error,
+      });
+
+      continue;
+    }
     try {
       const result = await syncOneBranch({
-        locationId: String(location.id),
-        locationName: location.name,
+        locationId: String(branch.locationId),
+        locationName: branch.locationName,
+        branch,
         dryRun,
       });
       results.push({
-        locationId: location.id,
-        locationName: location.name,
         success: true,
         ...result,
         durationSeconds: (Date.now() - branchStartedAt) / 1000,
       });
-      console.log(`[Product Sync] SUCCESS - ${location.name}`);
     } catch (error) {
-      console.error(`[Product Sync] FAILED - ${location.name}`, error);
+      console.error(`[Product Sync] FAILED - ${branch.locationName}`, error);
 
       results.push({
-        locationId: location.id,
-        locationName: location.name,
+        locationId: String(branch.locationId),
+        locationName: branch.locationName,
         success: false,
         error: error.message,
         durationSeconds: (Date.now() - branchStartedAt) / 1000,
@@ -345,7 +372,7 @@ async function syncAllBranches({ dryRun = true } = {}) {
   }
   return {
     dryRun,
-    totalLocations: locations.length,
+    totalLocations: variantsResults.totalLocations,
     successLocations: results.filter((r) => r.success).length,
     failedLocations: results.filter((r) => !r.success).length,
     totalDurationSeconds: (Date.now() - startedAt) / 1000,
@@ -420,7 +447,7 @@ async function variantIncremental({ location, dryRun = true }) {
     locationId,
     locationName,
     success: true,
-    variants:variantsModified
+    variants: variantsModified,
   };
   const { productIds, inventoryItemIds } = collectIds([branch]);
   const products = await productServices.getByIds(productIds);
@@ -441,13 +468,11 @@ async function variantIncremental({ location, dryRun = true }) {
     dataMaps,
   });
   console.log("[Variant Incremental Mapping]", {
-  locationId,
-  variantsModified: variantsModified.length,
-  mappedRows: mapped.rows.length,
-  uniqueIds: new Set(
-    mapped.rows.map((row) => String(row[0]))
-  ).size,
-});
+    locationId,
+    variantsModified: variantsModified.length,
+    mappedRows: mapped.rows.length,
+    uniqueIds: new Set(mapped.rows.map((row) => String(row[0]))).size,
+  });
 
   const sheetResult = await processProductSheet({
     branch,
@@ -469,7 +494,6 @@ async function variantIncremental({ location, dryRun = true }) {
       productId: String(variant.product_id),
     }));
   if (!dryRun) {
-
     await inventoryItemFS.saveMappings(mappings);
     await variantSyncState.saveSuccess(locationId, syncStartedAt);
   }
@@ -489,6 +513,7 @@ async function allVariantIncremental({
   locationIds = null,
 } = {}) {
   const startedAt = Date.now();
+  const runId = randomUUID();
   const allLocations = await locationFS.getAll();
   const filterIds = locationIds ? new Set(locationIds.map(String)) : null;
 
@@ -498,17 +523,23 @@ async function allVariantIncremental({
   if (!locations.length) {
     throw new Error("[Variant Sync] No location found");
   }
+
+  await logService.ensureSyncLogSheet();
+
   const results = [];
   for (const location of locations) {
+    const branchStartedAt = Date.now();
+    let result;
     try {
-      const result = await variantIncremental({
+      const syncResult = await variantIncremental({
         location,
         dryRun,
       });
-      results.push({
-        ...result,
+
+      result = {
+        ...syncResult,
         success: true,
-      });
+      };
     } catch (error) {
       console.error("[Variant Sync] Failed", {
         locationId: location.id,
@@ -516,15 +547,55 @@ async function allVariantIncremental({
         message: error.message,
       });
 
-      results.push({
+      result = {
         locationId: String(location.id),
         locationName: location.name,
         success: false,
         error: error.message,
+        modifiedVariants: 0,
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        durationSeconds: (Date.now() - branchStartedAt) / 1000,
+      };
+    }
+
+    results.push(result);
+    try {
+      await logService.writeSyncLog({
+        runId,
+        locationId: location.id,
+        locationName: location.name,
+        status: result.success ? "SUCCESS" : "FAILED",
+        modifiedOnMin: result.modifiedOnMin ?? "",
+        modifiedVariants: result.modifiedVariants ?? 0,
+        inserted: result.inserted ?? 0,
+        updated: result.updated ?? 0,
+        skipped: result.skipped ?? 0,
+        durationSeconds: result.durationSeconds ?? 0,
+        error: result.error ?? "",
       });
+    } catch (logError) {
+      console.error("[SyncLog] Write failed", {
+        locationId: location.id,
+        error: logError.message,
+      });
+
+      results.logError = logError.message;
     }
   }
+  try {
+    const cleanup = await logService.cleanUpOldSyncLogs();
+
+    console.log("[SyncLog Cleanup]", cleanup);
+  } catch (error) {
+    console.error("[SyncLog Cleanup Failed]", {
+      message: error.message,
+    });
+  }
+
   return {
+    runId,
     dryRun,
     totalLocations: locations.length,
     successLocations: results.filter((r) => r.success).length,
@@ -548,7 +619,8 @@ const productSync = {
   syncAllBranches,
   buildInventoryMappings,
   variantIncremental,
-  allVariantIncremental
+  allVariantIncremental,
+  syncOneBranch,
 };
 
 module.exports = productSync;
