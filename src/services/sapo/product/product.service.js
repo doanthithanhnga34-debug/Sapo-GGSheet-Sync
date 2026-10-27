@@ -96,7 +96,13 @@ async function getProducts({ page = 1, limit = config.sapo.productLimit }) {
 
   const data = await sapoGet(`/admin/products.json?${params.toString()}`);
   await sleep(config.sync.requestDelay);
-  return Array.isArray(data?.products) ? data.products : [];
+  if (!Array.isArray(data?.products)) {
+    throw new Error(
+      `[Product] Invalid response at page ${page}`
+    );
+  }
+
+  return data.products;
 }
 
 async function getAllProduct(){

@@ -35,7 +35,7 @@ async function writeProductDiff({
   await sheetServices.ensureSheet(sheetName,1000,headers.length,spreadsheetId);
 
   await sheetServices.ensureHeaders(sheetName,headers,spreadsheetId)
-  await sheetServices.ensureSheetSize(sheetName,1,headers.length,spreadsheetId);
+  await sheetServices.ensureSheetSize(sheetName,1000,headers.length,spreadsheetId);
 
   let updated =0;
   let inserted = 0;

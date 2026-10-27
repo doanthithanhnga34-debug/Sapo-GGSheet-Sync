@@ -4,6 +4,7 @@ const sheetServices = require("../../sheet.service");
 const SHEET_NAME = "SyncLog";
 const spreadsheetId = config.sheetProduct.id;
 
+const KEEP_LATEST_RUNS = 3;
 const HEADERS = [
   "Run ID",
   "Thời gian bắt đầu",
@@ -76,8 +77,6 @@ async function writeSyncLog({
 
   await sheetServices.appendValue(`'${SHEET_NAME}'!A:N`, [row], spreadsheetId);
 }
-
-const KEEP_LATEST_RUNS = 2;
 
 async function cleanUpOldSyncLogs() {
   const values = await sheetServices.getValues(

@@ -1,7 +1,8 @@
 const { Firestore } = require("@google-cloud/firestore");
+const config = require("../../config/config");
 
 const db = new Firestore({
-  projectId: "solar-catfish-508808-p7",
+  projectId: config.projectId
 });
 
 const COLLECTION = "product_variant";

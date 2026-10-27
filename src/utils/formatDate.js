@@ -1,5 +1,3 @@
-
-
 function subtractMinutes(isoDate, minutes) {
   const date = new Date(isoDate);
   if (!Number.isFinite(date.getTime())) {
@@ -31,30 +29,43 @@ function getLatestModifiedOn(customers, fallback) {
 
 function getModifiedOnMinProduct(checkpoint) {
   return new Date(
-    new Date(checkpoint).getTime() - 12 * 60 * 1000
+    new Date(checkpoint).getTime() - 12 * 60 * 1000,
   ).toISOString();
 }
 
-function subtractMonthFromISO(isoString, months=1){
+const OVERLAP_MS = 2* 60 * 60 * 1000;
+
+function getIncrementalStartAt(checkpoint) {
+  const timestamp = new Date(checkpoint).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    throw new Error(`[Variant Sync] Invalid checkpoint: ${checkpoint}`);
+  }
+
+  return new Date(timestamp - OVERLAP_MS).toISOString();
+}
+
+function subtractMonthFromISO(isoString, months = 1) {
   const date = new Date(isoString);
 
-  if(Number.isNaN(date.getTime())){
+  if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid date: ${isoString}`);
   }
 
   const originalDay = date.getUTCDate();
   date.setUTCDate(1);
-  date.setUTCMonth(date.getUTCMonth()-months);
+  date.setUTCMonth(date.getUTCMonth() - months);
 
-  const lastDayOfMonth = new Date( Date.UTC(date.get))
+  const lastDayOfMonth = new Date(Date.UTC(date.get));
 }
 
-function formatNumberAmount(value){
-  return Number(value).toLocaleString('en-US')
+function formatNumberAmount(value) {
+  return Number(value).toLocaleString("en-US");
 }
-module.exports ={
-    subtractMinutes,
-    getLatestModifiedOn,
-    formatNumberAmount,
-    getModifiedOnMinProduct
-}
+module.exports = {
+  subtractMinutes,
+  getLatestModifiedOn,
+  formatNumberAmount,
+  getModifiedOnMinProduct,
+  getIncrementalStartAt,
+};

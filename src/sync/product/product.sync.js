@@ -9,15 +9,11 @@ const variantService = require("../../services/sapo/product/variant.service");
 const { buildDiff } = require("../../services/sheet/product/diff.sheet");
 const logService = require("../../services/sheet/product/log/log.sheet");
 const {
-  ensureSyncLogSheet,
-  writeSyncLog,
-} = require("../../services/sheet/product/log/log.sheet");
-const {
   writeProductDiff,
 } = require("../../services/sheet/product/product.sheet");
 const sheetServices = require("../../services/sheet/sheet.service");
 const variantSyncState = require("../../services/syncState/variant.SyncState.service");
-const { getModifiedOnMinProduct } = require("../../utils/formatDate");
+const { getIncrementalStartAt } = require("../../utils/formatDate");
 const { collectIds } = require("./IdsCollectors");
 const { buildBranchRows, buildDataMaps } = require("./product.data.service");
 const productMapper = require("./product.mapper");
@@ -52,7 +48,6 @@ async function buildInventoryMappings() {
 async function buildVariantAllBranch() {
   const startedAt = Date.now();
 
-  // Lấy toàn bộ locations từ Firestore
   const locations = await locationFS.getAll();
 
   const CONCURRENCY = 3;
@@ -140,15 +135,15 @@ async function processProductSheet({
 }) {
   const startedAt = Date.now();
 
-  const sheetName = branch.locationName;
-
-  // Đọc Google Sheets.
+  const sheetName = locationService.getSheetName(
+    branch.locationId,
+    branch.locationName,
+  );
   const sheet = await sheetServices.buildSheetIndex({
     spreadsheetId,
     sheetName,
   });
 
-  // So sánh dữ liệu.
   const diff = buildDiff(mappedRows, sheet.index);
   console.log("[Product Diff]", {
     inserted: diff.inserts.length,
@@ -157,7 +152,6 @@ async function processProductSheet({
     sampleUpdates: diff.updates.slice(0, 3),
   });
 
-  // Ghi khi dryRun = false.
   const writeResult = await writeProductDiff({
     spreadsheetId,
     sheetName,
@@ -174,79 +168,6 @@ async function processProductSheet({
     durationSeconds: (Date.now() - startedAt) / 1000,
   };
 }
-async function testProductMapping() {
-  const startedAt = Date.now();
-  const variantResults = await buildVariantAllBranch({
-    includeVariants: true,
-  });
-  const locationId = "924281";
-  const locationName = "Lê Đình Cẩn";
-
-  const branch = variantResults.branches.find(
-    (item) => String(item.locationId) === locationId,
-  );
-
-  if (!branch || !branch.success) {
-    throw new Error(`Cannot fetch variants for location ${locationId}`);
-  }
-  const { productIds, inventoryItemIds, locationInventoryMap } = collectIds([
-    branch,
-  ]);
-
-  const products = await productServices.getByIds(productIds);
-
-  const inventoryItems = await inventoryItemService.getByIds(inventoryItemIds);
-
-  const inventoryLevels = await inventoryLevelService.getByIds({
-    inventoryItemIds,
-    locationId,
-  });
-  console.log("[Product Mapping]", {
-    variants: branch.variants.length,
-    products: products.length,
-    inventoryItems: inventoryItems.length,
-    inventoryLevels: inventoryLevels.length,
-  });
-  const dataMaps = buildDataMaps({
-    products,
-    inventoryItems,
-    inventoryLevels,
-  });
-  await sheetServices.ensureSheet(
-    locationName,
-    1000,
-    productMapper.HEADERS.length,
-    config.sheetProduct.id,
-  );
-
-  const result = buildBranchRows({
-    branch,
-    dataMaps,
-  });
-  const sheetStartedAt = Date.now();
-  const sheetResult = await processProductSheet({
-    branch,
-    mappedRows: result.rows,
-    spreadsheetId: config.sheetProduct.id,
-    dryRun: false,
-  });
-  const sheet = await sheetServices.buildSheetIndex({
-    spreadsheetId: config.sheetProduct.id,
-    sheetName: locationName,
-  });
-
-  const sheetReadSeconds = (Date.now() - sheetStartedAt) / 1000;
-
-  const diffStartedAt = Date.now();
-
-  const diff = buildDiff(result.rows, sheet.index);
-
-  const diffSeconds = (Date.now() - diffStartedAt) / 1000;
-  return {
-    ...sheetResult,
-    totalDurationSeconds: (Date.now() - startedAt) / 1000,
-  };
-}
 
 // Sync initial product to sheet
 async function syncOneBranch({
@@ -260,7 +181,7 @@ async function syncOneBranch({
   if (!branch) {
     const variants = [];
     let page = 1;
-    const limit = config.sapo.sheetProduct;
+    const limit = config.sapo.productLimit;
     while (true) {
       const data = await variantService.getVariants({
         locationId,
@@ -306,7 +227,7 @@ async function syncOneBranch({
   });
   if (!dryRun) {
     await sheetServices.ensureSheet(
-      locationName,
+      locationService.getSheetName(locationId, locationName),
       1000,
       productMapper.HEADERS.length,
       config.sheetProduct.id,
@@ -335,7 +256,13 @@ async function syncAllBranches({ dryRun = false } = {}) {
     console.log(
       `[Product Sync] ${index + 1}/${variantsResults.branches.length} - ${branch.locationName}`,
     );
+    const syncStartedAt = new Date().toISOString();
+    const locationId = String(branch.locationId);
+    const locationName = branch.locationName;
 
+    console.log(
+      `[Product Sync] ${index + 1}/${variantsResults.branches.length} - ${locationName}`,
+    );
     if (!branch.success) {
       results.push({
         locationId: String(branch.locationId),
@@ -348,14 +275,29 @@ async function syncAllBranches({ dryRun = false } = {}) {
     }
     try {
       const result = await syncOneBranch({
-        locationId: String(branch.locationId),
-        locationName: branch.locationName,
+        locationId,
+        locationName,
         branch,
         dryRun,
       });
+
+      if (!dryRun) {
+        await variantSyncState.saveSuccess(locationId, syncStartedAt);
+
+        console.log("[Product Sync] Checkpoint saved", {
+          locationId,
+          locationName,
+          checkpoint: syncStartedAt,
+        });
+      }
+
       results.push({
-        success: true,
         ...result,
+        locationId,
+        locationName,
+        success: true,
+        checkpointSaved: !dryRun,
+        checkpoint: dryRun ? null : syncStartedAt,
         durationSeconds: (Date.now() - branchStartedAt) / 1000,
       });
     } catch (error) {
@@ -365,6 +307,7 @@ async function syncAllBranches({ dryRun = false } = {}) {
         locationId: String(branch.locationId),
         locationName: branch.locationName,
         success: false,
+        checkpointSaved: false,
         error: error.message,
         durationSeconds: (Date.now() - branchStartedAt) / 1000,
       });
@@ -382,8 +325,6 @@ async function syncAllBranches({ dryRun = false } = {}) {
 
 //INCREMENTAL
 
-const FALLBACK_CHECKPOINT = config.sheetProduct.incrementalStartAt;
-
 async function variantIncremental({ location, dryRun = true }) {
   const startedAt = Date.now();
   const locationId = String(location.id);
@@ -392,15 +333,17 @@ async function variantIncremental({ location, dryRun = true }) {
   const syncStartedAt = new Date().toISOString();
 
   const state = await variantSyncState.getState(locationId);
+  // if (!state?.lastSuccessSync) {
+  //   throw new Error(
+  //     `[Variant Sync] Missing checkpoint for ${locationName}. ` +
+  //       `Run initial sync or initialize checkpoint first.`,
+  //   );
+  // }
 
-  const checkpoint = state?.lastSuccessfulSync ?? FALLBACK_CHECKPOINT;
-
-  if (!checkpoint) {
-    throw new Error(
-      `[Variant Sync] missing initial checkpoint for ${locationName}`,
-    );
-  }
-  const modifiedOnMin = getModifiedOnMinProduct(checkpoint);
+  console.log("State checkpoint last successful sync", state.lastSuccessSync);
+  const checkpoint = state?.lastSuccessSync ?? syncStartedAt;
+  console.log("Checkpoint running", checkpoint);
+  const modifiedOnMin = getIncrementalStartAt(checkpoint);
 
   let page = 1;
   const limit = config.sapo.productLimit;
@@ -581,9 +524,10 @@ async function allVariantIncremental({
         error: logError.message,
       });
 
-      results.logError = logError.message;
+      result.logError = logError.message;
     }
   }
+
   try {
     const cleanup = await logService.cleanUpOldSyncLogs();
 
@@ -615,7 +559,7 @@ async function allVariantIncremental({
 const productSync = {
   buildLocations,
   buildVariantAllBranch,
-  testProductMapping,
+
   syncAllBranches,
   buildInventoryMappings,
   variantIncremental,

@@ -422,6 +422,39 @@ async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
 
   console.log(`Inserted ${rowCount} rows at top`);
 }
+async function formatProductPriceColumns({
+  spreadsheetId,
+  sheetId,
+}) {
+  const requests = [
+    {
+      repeatCell: {
+        range: {
+          sheetId: Number(sheetId),
+          startRowIndex: 1,     // Bỏ qua header
+          startColumnIndex: 6,  // Cột G
+          endColumnIndex: 8,    // Hết cột H
+        },
+        cell: {
+          userEnteredFormat: {
+            numberFormat: {
+              type: "NUMBER",
+              pattern: "#,##0",
+            },
+            horizontalAlignment: "RIGHT",
+          },
+        },
+        fields:
+          "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment",
+      },
+    },
+  ];
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests },
+  });
+}
 
 const sheetServices = {
   getSheetsClient,

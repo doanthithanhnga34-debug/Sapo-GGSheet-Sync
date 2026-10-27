@@ -177,7 +177,7 @@ function logPlan(t, plan, index) {
       inserts.length > MAX_LOGGED
         ? ` ... và ${inserts.length - MAX_LOGGED} đơn khác`
         : "";
-    console.log(`  Thêm mới: ${shown}${more}`);
+    console.log(`Thêm mới: ${shown}${more}`);
   }
 }
 async function readSheet(t) {

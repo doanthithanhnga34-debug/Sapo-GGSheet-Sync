@@ -1,3 +1,5 @@
+const { normalizePrice } = require("../../utils/price.helper");
+
 const HEADERS = [
   "hss_unique_id",
   "Loại Hàng",
@@ -104,6 +106,7 @@ function stripHtml(html) {
     .replace(/\n\s*\n/g, "\n")
     .trim();
 }
+
 function mapVariantToRow(
   variant,
   locationId,
@@ -132,8 +135,8 @@ function mapVariantToRow(
   set("Mã Hàng", variant.sku || variant.barcode);
   set("Tên Hàng", productData.name);
   set("Thương Hiệu", productData.vendor);
-  set("Giá Bán", variant.price);
-  set("Giá Vốn", inventoryItem.cost_price);
+  set("Giá Bán",normalizePrice(variant.price));
+  set("Giá Vốn", normalizePrice(inventoryItem.cost_price));
 
   set("Tồn Kho", inventoryLevel.on_hand);
 

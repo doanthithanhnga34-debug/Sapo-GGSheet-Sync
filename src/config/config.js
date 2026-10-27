@@ -3,6 +3,7 @@ require("dotenv").config();
 
 const config = {
   port: Number(process.env.PORT || 8080),
+  projectId:process.env.PROJECT_SAPO_GOOGLESHEET_SYNC_ID,
   filterOrder:[
     'shopee',
     'tiktokshop',

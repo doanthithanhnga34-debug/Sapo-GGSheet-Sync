@@ -1,8 +1,9 @@
 const  fireStore  = require("@google-cloud/firestore");
 const fs = require("./index.firestore");
+const config = require("../../config/config");
 
 const db = new fireStore({
-    projectId:'solar-catfish-508808-p7'
+    projectId:config.projectId
 })
 
 const COLLECTION = 'location'

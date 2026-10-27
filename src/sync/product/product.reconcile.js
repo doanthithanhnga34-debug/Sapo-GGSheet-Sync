@@ -1,16 +1,17 @@
-const { exists } = require("@google-cloud/firestore/pipelines");
+
 const config = require("../../config/config");
 const variantService = require("../../services/sapo/product/variant.service");
 const sheetServices = require("../../services/sheet/sheet.service");
 const locationFS = require("../../services/firestore/location.firestore");
-const { calendar } = require("googleapis/build/src/apis/calendar");
 const inventoryItemFS = require("../../services/firestore/inventory-item.firestore");
-const inventoryItemService = require("../../services/sapo/product/inventory-item.service");
 const productServices = require("../../services/sapo/product/product.service");
+const {
+  getSheetName,
+} = require("../../services/sapo/product/location.service");
 
 async function reconcileDeletedVariants({ location, dryRun = true }) {
   const locationId = String(location.id);
-  const sheetName = location.name;
+  const sheetName = getSheetName(location.id, location.name);
 
   const limit = config.sapo.productLimit;
   let page = 1;
@@ -89,14 +90,14 @@ async function reconcileAllLocations() {
       if (deletedRows.length > 0) {
         deleted = await sheetServices.deleteRowsBatch(
           deletedRows.map((row) => row.rowNo),
-          location.name,
+          result.sheetName,
           config.sheetProduct.id,
         );
       }
 
       results.push({
         locationId: String(location.id),
-        sheetName: location.name,
+        sheetName: getSheetName(location.id, location.name),
         success: true,
         sapoVariants: result.sapoVariants,
         existingRows: result.existing,
@@ -108,7 +109,7 @@ async function reconcileAllLocations() {
     } catch (e) {
       results.push({
         locationId: String(location.id),
-        sheetName: location.name,
+        sheetName: getSheetName(location.id, location.name),
         success: false,
         error: e.message,
         durationSeconds: (Date.now() - locationStartedAt) / 1000,
@@ -138,8 +139,6 @@ async function reconcileAllLocations() {
   };
 }
 
-
-
 async function cleanUpInventoryMappings() {
   const mappings = await inventoryItemFS.getAllMappings();
   if (!mappings.length) {
@@ -164,7 +163,7 @@ async function cleanUpInventoryMappings() {
     }
 
     for (const variant of product.variants) {
-      if (variant.inventory_item_id !== null) {
+      if (variant.type === "normal" && variant.inventory_item_id != null) {
         activeInventoryItemIds.add(String(variant.inventory_item_id));
       }
     }
@@ -183,7 +182,6 @@ async function cleanUpInventoryMappings() {
     deleted = result.deleted;
   }
   return {
-
     checked: mappings.length,
     activeInventoryItems: activeInventoryItemIds.size,
     plannedDeletes: deletedIds.length,

@@ -4,6 +4,9 @@ const inventoryItemFS = require("../../../services/firestore/inventory-item.fire
 const locationFS = require("../../../services/firestore/location.firestore");
 const config = require("../../../config/config");
 const { buildCostPriceDiff } = require("./costPrice.diff");
+const {
+  getSheetName,
+} = require("../../../services/sapo/product/location.service");
 
 const UPDATE_BATCH_SIZE = 250;
 function escapeSheetName(name) {
@@ -81,16 +84,18 @@ async function syncCostPrice({ dryRun = true } = {}) {
   const inventoryItems = await inventoryItemService.getByIds(inventoryItemIds);
   const returnedIds = new Set(inventoryItems.map((item) => String(item.id)));
   const missingIds = inventoryItemIds.filter((id) => !returnedIds.has(id));
-  if (missingIds.length > 0) {
+  const MAX_MISSING_ITEMS = 5;
+  if (missingIds.length > MAX_MISSING_ITEMS) {
     console.warn("[Cost Price] Missing Inventory Items", {
       total: missingIds.length,
       sample: missingIds.slice(0, 10),
     });
-    // throw new Error(
-    //   `[Cost Price] Missing ${missingIds.length} inventory items. ` +
-    //     `Sample: ${missingIds.slice(0, 5).join(", ")}`,
-    // );
+    throw new Error(
+      `[Cost Price] Too many missing inventory items: ` +
+        `${missingIds.length}/${inventoryItemIds.length}`,
+    );
   }
+
   const costItems = buildCostItems(mappings, inventoryItems);
   const locations = await locationFS.getAll();
 
@@ -103,7 +108,7 @@ async function syncCostPrice({ dryRun = true } = {}) {
     const branchStartedAt = Date.now();
 
     const locationId = String(location.id);
-    const sheetName = location.name;
+    const sheetName = getSheetName(location.id, location.name);
 
     try {
       console.log("[Cost Price] Checking", {

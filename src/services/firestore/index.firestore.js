@@ -1,7 +1,8 @@
 const { Firestore } = require("@google-cloud/firestore");
+const config = require("../../config/config");
 
 const db = new Firestore({
-  projectId: "solar-catfish-508808-p7",
+  projectId: config.projectId,
 });
 
 async function getDocument(collection, document, defaultState = {}) {
@@ -18,8 +19,7 @@ async function getDocument(collection, document, defaultState = {}) {
   };
 }
 
-async function setDocument(collection,document,data = {}) {
-
+async function setDocument(collection, document, data = {}) {
   const ref = db.collection(collection).doc(document);
   await ref.set(
     {
@@ -33,7 +33,9 @@ async function setDocument(collection,document,data = {}) {
   return true;
 }
 
-const fs={
-    getDocument, setDocument
-}
-module.exports = fs
+const fs = {
+  db,
+  getDocument,
+  setDocument,
+};
+module.exports = fs;

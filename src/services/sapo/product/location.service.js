@@ -2,6 +2,9 @@ const config = require("../../../config/config");
 const { sleep } = require("../../../infrastructure/retry");
 const { sapoGet } = require("../sapo.service");
 
+const SHEET_NAME_BY_LOCATION_ID = {
+  925710: "Quận 10",
+};
 async function getAllLocations({
   page = 0,
   limit = 0,
@@ -18,8 +21,13 @@ async function getAllLocations({
   return Array.isArray(data?.locations) ? data.locations : [];
 }
 
-const locationService ={
-getAllLocations
+function getSheetName(locationId, locationName) {
+  return SHEET_NAME_BY_LOCATION_ID[String(locationId)] ?? locationName;
 }
 
-module.exports = locationService
+const locationService = {
+  getAllLocations,
+  getSheetName
+};
+
+module.exports = locationService;
