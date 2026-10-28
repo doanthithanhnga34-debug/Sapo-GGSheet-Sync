@@ -377,8 +377,9 @@ async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
 
   const spreadsheet = await sheets.spreadsheets.get({
     spreadsheetId,
-    fields: "sheets.properties(sheetId,title)",
+    fields: "sheets(properties(sheetId,title))",
   });
+
   const targetSheet = spreadsheet.data.sheets.find(
     (item) => item.properties.title === sheetName,
   );
@@ -386,9 +387,9 @@ async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
   if (!targetSheet) {
     throw new Error(`Sheet not found: ${sheetName}`);
   }
+
   const sheetId = targetSheet.properties.sheetId;
   const rowCount = rows.length;
-
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
@@ -404,14 +405,35 @@ async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
             inheritFromBefore: false,
           },
         },
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: 1,
+              endRowIndex: 1 + rowCount,
+              startColumnIndex: 3, // D - Mã Hàng
+              endColumnIndex: 4,
+            },
+            cell: {
+              userEnteredFormat: {
+                numberFormat: {
+                  type: "TEXT",
+                  pattern: "@",
+                },
+              },
+            },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        },
       ],
     },
   });
 
+  // 2. Ghi dữ liệu vào các dòng vừa chèn
   const lastColumn = columnNumberToLetter(rows[0].length);
   const escapedSheetName = sheetName.replace(/'/g, "''");
 
-  await sheets.spreadsheets.values.update({
+  const response = await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `'${escapedSheetName}'!A2:${lastColumn}${rowCount + 1}`,
     valueInputOption: "RAW",
@@ -420,20 +442,25 @@ async function insertRowsAtTop(sheetName, rows, spreadsheetId) {
     },
   });
 
-  console.log(`Inserted ${rowCount} rows at top`);
+  console.log("[Sheet Insert]", {
+    sheetName,
+    insertedRows: rowCount,
+    updatedRows: response.data.updatedRows,
+    updatedCells: response.data.updatedCells,
+    updatedRange: response.data.updatedRange,
+  });
+
+  return rowCount;
 }
-async function formatProductPriceColumns({
-  spreadsheetId,
-  sheetId,
-}) {
+async function formatProductPriceColumns({ spreadsheetId, sheetId }) {
   const requests = [
     {
       repeatCell: {
         range: {
           sheetId: Number(sheetId),
-          startRowIndex: 1,     // Bỏ qua header
-          startColumnIndex: 6,  // Cột G
-          endColumnIndex: 8,    // Hết cột H
+          startRowIndex: 1, // Bỏ qua header
+          startColumnIndex: 6, // Cột G
+          endColumnIndex: 8, // Hết cột H
         },
         cell: {
           userEnteredFormat: {

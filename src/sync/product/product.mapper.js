@@ -132,7 +132,10 @@ function mapVariantToRow(
   set("hss_unique_id", generateUniqueId(variant.id, locationId));
   set("Loại Hàng", "Hàng hóa");
   set("Nhóm Hàng", getProductGroup(productData.product_type));
-  set("Mã Hàng", variant.sku || variant.barcode);
+  set(
+  "Mã Hàng",
+  String(variant.sku ?? "").trim().replace(/^'+/, "")
+);
   set("Tên Hàng", productData.name);
   set("Thương Hiệu", productData.vendor);
   set("Giá Bán",normalizePrice(variant.price));
